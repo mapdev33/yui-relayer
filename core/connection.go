@@ -21,11 +21,12 @@ var (
 
 func CreateConnection(src, dst *ProvableChain, to time.Duration) error {
 	ticker := time.NewTicker(to)
-
+	fmt.Println("----------begin CreateConnection -------------")
 	failed := 0
 	for ; true; <-ticker.C {
 		connSteps, err := createConnectionStep(src, dst)
 		if err != nil {
+			fmt.Println("createConnectionStep err", err)
 			return err
 		}
 
