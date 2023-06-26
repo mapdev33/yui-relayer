@@ -2,9 +2,9 @@ package module
 
 import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/hyperledger-labs/yui-relayer/chains/fabric"
-	"github.com/hyperledger-labs/yui-relayer/chains/fabric/cmd"
-	"github.com/hyperledger-labs/yui-relayer/config"
+	"github.com/mapdev33/yui-relayer/chains/fabric"
+	"github.com/mapdev33/yui-relayer/chains/fabric/cmd"
+	"github.com/mapdev33/yui-relayer/config"
 	"github.com/spf13/cobra"
 )
 

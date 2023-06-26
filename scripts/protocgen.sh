@@ -31,5 +31,5 @@ Mgoogle/protobuf/any.proto=github.com/cosmos/cosmos-sdk/codec/types:. \
 
 done
 
-cp -r github.com/hyperledger-labs/yui-relayer/* ./
+cp -r github.com/mapdev33/yui-relayer/* ./
 rm -rf github.com

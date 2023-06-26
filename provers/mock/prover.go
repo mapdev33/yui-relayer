@@ -11,7 +11,7 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
 
 	mocktypes "github.com/datachainlab/ibc-mock-client/modules/light-clients/xx-mock/types"
-	"github.com/hyperledger-labs/yui-relayer/core"
+	"github.com/mapdev33/yui-relayer/core"
 )
 
 type Prover struct {

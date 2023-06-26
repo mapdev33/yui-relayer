@@ -1,4 +1,4 @@
-module github.com/hyperledger-labs/yui-relayer/tests/chains/fabric/chaincode/fabibc
+module github.com/mapdev33/yui-relayer/tests/chains/fabric/chaincode/fabibc
 
 go 1.15
 

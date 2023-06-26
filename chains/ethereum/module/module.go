@@ -2,8 +2,8 @@ package module
 
 import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/hyperledger-labs/yui-relayer/chains/ethereum"
-	"github.com/hyperledger-labs/yui-relayer/config"
+	"github.com/mapdev33/yui-relayer/chains/ethereum"
+	"github.com/mapdev33/yui-relayer/config"
 	"github.com/spf13/cobra"
 )
 

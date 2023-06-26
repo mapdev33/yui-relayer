@@ -1,4 +1,4 @@
-module github.com/hyperledger-labs/yui-relayer
+module github.com/mapdev33/yui-relayer
 
 go 1.15
 

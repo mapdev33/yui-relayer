@@ -8,8 +8,8 @@ import (
 	"path"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/hyperledger-labs/yui-relayer/config"
-	"github.com/hyperledger-labs/yui-relayer/core"
+	"github.com/mapdev33/yui-relayer/config"
+	"github.com/mapdev33/yui-relayer/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

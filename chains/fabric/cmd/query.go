@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/hyperledger-labs/yui-relayer/chains/fabric"
-	"github.com/hyperledger-labs/yui-relayer/config"
+	"github.com/mapdev33/yui-relayer/chains/fabric"
+	"github.com/mapdev33/yui-relayer/config"
 	"github.com/spf13/cobra"
 )
 

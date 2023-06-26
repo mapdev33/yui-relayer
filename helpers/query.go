@@ -2,7 +2,7 @@ package helpers
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/hyperledger-labs/yui-relayer/core"
+	"github.com/mapdev33/yui-relayer/core"
 )
 
 // QueryBalance is a helper function for query balance

@@ -1,4 +1,4 @@
-module github.com/hyperledger-labs/yui-relayer/tests/tendermint
+module github.com/mapdev33/yui-relayer/tests/tendermint
 
 go 1.15
 
