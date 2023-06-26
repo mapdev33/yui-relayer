@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 func GetPacketsFromEvents(events []abci.Event) ([]channeltypes.Packet, error) {
@@ -32,7 +32,7 @@ func GetPacketsFromEvents(events []abci.Event) ([]channeltypes.Packet, error) {
 				err = assertIndex(i, 0)
 			case channeltypes.AttributeKeyDataHex:
 				var bz []byte
-				bz, err = hex.DecodeString(attr.Value)
+				bz, err = hex.DecodeString(string(attr.Value))
 				if err != nil {
 					panic(err)
 				}
@@ -131,7 +131,7 @@ func GetPacketAcknowledgementsFromEvents(events []abci.Event) ([]packetAcknowled
 				ack.dstChannelID = v
 				err = assertIndex(i, 8)
 			case channeltypes.AttributeKeyAck:
-				ack.data = []byte(attr.Value)
+				ack.data = attr.Value
 				err = assertIndex(i, 9)
 			}
 			if err != nil {

@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"log"
 
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -45,7 +46,7 @@ func (app *SimApp) ExportAppStateAndValidators(
 
 // prepare for fresh start at zero height
 // NOTE zero height genesis is a temporary feature which will be deprecated
-// in favour of export at a block height
+//      in favour of export at a block height
 func (app *SimApp) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
 	applyAllowedAddrs := false
 
@@ -108,8 +109,8 @@ func (app *SimApp) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []
 		feePool.CommunityPool = feePool.CommunityPool.Add(scraps...)
 		app.DistrKeeper.SetFeePool(ctx, feePool)
 
-		err := app.DistrKeeper.Hooks().AfterValidatorCreated(ctx, val.GetOperator())
-		return err != nil
+		app.DistrKeeper.Hooks().AfterValidatorCreated(ctx, val.GetOperator())
+		return false
 	})
 
 	// reinitialize all delegations
@@ -122,14 +123,8 @@ func (app *SimApp) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []
 		if err != nil {
 			panic(err)
 		}
-		err = app.DistrKeeper.Hooks().BeforeDelegationCreated(ctx, delAddr, valAddr)
-		if err != nil {
-			panic(err)
-		}
-		err = app.DistrKeeper.Hooks().AfterDelegationModified(ctx, delAddr, valAddr)
-		if err != nil {
-			panic(err)
-		}
+		app.DistrKeeper.Hooks().BeforeDelegationCreated(ctx, delAddr, valAddr)
+		app.DistrKeeper.Hooks().AfterDelegationModified(ctx, delAddr, valAddr)
 	}
 
 	// reset context height
@@ -162,7 +157,7 @@ func (app *SimApp) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []
 	counter := int16(0)
 
 	for ; iter.Valid(); iter.Next() {
-		addr := sdk.ValAddress(stakingtypes.AddressFromValidatorsKey(iter.Key()))
+		addr := sdk.ValAddress(iter.Key()[1:])
 		validator, found := app.StakingKeeper.GetValidator(ctx, addr)
 		if !found {
 			panic("expected validator, not found")

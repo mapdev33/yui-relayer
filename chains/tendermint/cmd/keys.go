@@ -40,7 +40,7 @@ func keysAddCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chain := c.Chain.(*tendermint.Chain)
+			chain := c.ChainI.(*tendermint.Chain)
 
 			var keyName string
 			if len(args) == 2 {
@@ -63,11 +63,7 @@ func keysAddCmd(ctx *config.Context) *cobra.Command {
 				return err
 			}
 
-			addr, err := info.GetAddress()
-			if err != nil {
-				return err
-			}
-			ko := keyOutput{Mnemonic: mnemonic, Address: addr.String()}
+			ko := keyOutput{Mnemonic: mnemonic, Address: info.GetAddress().String()}
 
 			out, err := json.Marshal(&ko)
 			if err != nil {
@@ -100,7 +96,7 @@ func keysRestoreCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chain := c.Chain.(*tendermint.Chain)
+			chain := c.ChainI.(*tendermint.Chain)
 
 			if chain.KeyExists(keyName) {
 				return errKeyExists(keyName)
@@ -112,11 +108,7 @@ func keysRestoreCmd(ctx *config.Context) *cobra.Command {
 			}
 
 			defer chain.UseSDKContext()()
-			addr, err := info.GetAddress()
-			if err != nil {
-				return err
-			}
-			fmt.Println(addr.String())
+			fmt.Println(info.GetAddress().String())
 			return nil
 		},
 	}
@@ -136,7 +128,7 @@ func keysShowCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chain := c.Chain.(*tendermint.Chain)
+			chain := c.ChainI.(*tendermint.Chain)
 
 			var keyName string
 			if len(args) == 2 {
@@ -154,11 +146,7 @@ func keysShowCmd(ctx *config.Context) *cobra.Command {
 				return err
 			}
 
-			addr, err := info.GetAddress()
-			if err != nil {
-				return err
-			}
-			fmt.Println(addr.String())
+			fmt.Println(info.GetAddress().String())
 			return nil
 		},
 	}
@@ -177,7 +165,7 @@ func keysListCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chain := c.Chain.(*tendermint.Chain)
+			chain := c.ChainI.(*tendermint.Chain)
 
 			info, err := chain.Keybase.List()
 			if err != nil {
@@ -185,11 +173,7 @@ func keysListCmd(ctx *config.Context) *cobra.Command {
 			}
 
 			for d, i := range info {
-				addr, err := i.GetAddress()
-				if err != nil {
-					return err
-				}
-				fmt.Printf("key(%d): %s -> %s\n", d, i.Name, addr.String())
+				fmt.Printf("key(%d): %s -> %s\n", d, i.GetName(), i.GetAddress().String())
 			}
 
 			return nil

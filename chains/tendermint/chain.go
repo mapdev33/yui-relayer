@@ -9,10 +9,6 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/cometbft/cometbft/libs/log"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	libclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	sdkCtx "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -25,8 +21,10 @@ import (
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authTypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/go-bip39"
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
+	"github.com/tendermint/tendermint/libs/log"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
+	libclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 
 	"github.com/hyperledger-labs/yui-relayer/core"
 )
@@ -48,9 +46,9 @@ type Chain struct {
 	Keybase  keys.Keyring     `yaml:"-" json:"-"`
 	Client   rpcclient.Client `yaml:"-" json:"-"`
 
-	codec            codec.ProtoCodecMarshaler `yaml:"-" json:"-"`
-	msgEventListener core.MsgEventListener
+	codec codec.ProtoCodecMarshaler `yaml:"-" json:"-"`
 
+	address sdk.AccAddress
 	logger  log.Logger
 	timeout time.Duration
 	debug   bool
@@ -59,7 +57,7 @@ type Chain struct {
 	faucetAddrs map[string]time.Time
 }
 
-var _ core.Chain = (*Chain)(nil)
+var _ core.ChainI = (*Chain)(nil)
 
 func (c *Chain) ChainID() string {
 	return c.config.ChainId
@@ -80,6 +78,9 @@ func (c *Chain) Codec() codec.ProtoCodecMarshaler {
 // GetAddress returns the sdk.AccAddress associated with the configred key
 func (c *Chain) GetAddress() (sdk.AccAddress, error) {
 	defer c.UseSDKContext()()
+	if c.address != nil {
+		return c.address, nil
+	}
 
 	// Signing key for c chain
 	srcAddr, err := c.Keybase.Key(c.config.Key)
@@ -87,12 +88,13 @@ func (c *Chain) GetAddress() (sdk.AccAddress, error) {
 		return nil, err
 	}
 
-	return srcAddr.GetAddress()
+	return srcAddr.GetAddress(), nil
 }
 
-// SetRelayInfo sets source's path and counterparty's info to the chain
-func (c *Chain) SetRelayInfo(p *core.PathEnd, _ *core.ProvableChain, _ *core.PathEnd) error {
-	if err := p.Validate(); err != nil {
+// SetPath sets the path and validates the identifiers
+func (c *Chain) SetPath(p *core.PathEnd) error {
+	err := p.Validate()
+	if err != nil {
 		return c.ErrCantSetPath(err)
 	}
 	c.PathEnd = p
@@ -109,7 +111,7 @@ func (c *Chain) Path() *core.PathEnd {
 }
 
 func (c *Chain) Init(homePath string, timeout time.Duration, codec codec.ProtoCodecMarshaler, debug bool) error {
-	keybase, err := keys.New(c.config.ChainId, "test", keysDir(homePath, c.config.ChainId), nil, codec)
+	keybase, err := keys.New(c.config.ChainId, "test", keysDir(homePath, c.config.ChainId), nil)
 	if err != nil {
 		return err
 	}
@@ -135,37 +137,22 @@ func (c *Chain) Init(homePath string, timeout time.Duration, codec codec.ProtoCo
 	return nil
 }
 
-func (c *Chain) SetupForRelay(ctx context.Context) error {
-	return nil
-}
-
-// LatestHeight queries the chain for the latest height and returns it
-func (c *Chain) LatestHeight() (ibcexported.Height, error) {
+// QueryLatestHeight queries the chain for the latest height and returns it
+func (c *Chain) GetLatestHeight() (int64, error) {
 	res, err := c.Client.Status(context.Background())
 	if err != nil {
-		return nil, err
+		return -1, err
 	} else if res.SyncInfo.CatchingUp {
-		return nil, fmt.Errorf("node at %s running chain %s not caught up", c.config.RpcAddr, c.ChainID())
+		return -1, fmt.Errorf("node at %s running chain %s not caught up", c.config.RpcAddr, c.ChainID())
 	}
-	version := clienttypes.ParseChainID(c.ChainID())
-	return clienttypes.NewHeight(version, uint64(res.SyncInfo.LatestBlockHeight)), nil
-}
 
-// RegisterMsgEventListener registers a given EventListener to the chain
-func (c *Chain) RegisterMsgEventListener(listener core.MsgEventListener) {
-	c.msgEventListener = listener
+	return res.SyncInfo.LatestBlockHeight, nil
 }
 
 func (c *Chain) sendMsgs(msgs []sdk.Msg) (*sdk.TxResponse, error) {
 	res, _, err := c.rawSendMsgs(msgs)
 	if err != nil {
 		return nil, err
-	}
-	if res.Code == 0 && c.msgEventListener != nil {
-		if err := c.msgEventListener.OnSentMsg(msgs); err != nil {
-			c.logger.Error("failed to OnSendMsg call", "msgs", msgs, "err", err)
-			return res, nil
-		}
 	}
 	return res, nil
 }
@@ -192,7 +179,7 @@ func (c *Chain) rawSendMsgs(msgs []sdk.Msg) (*sdk.TxResponse, bool, error) {
 	txf = txf.WithGas(adjusted)
 
 	// Build the transaction builder
-	txb, err := txf.BuildUnsignedTx(msgs...)
+	txb, err := tx.BuildUnsignedTx(txf, msgs...)
 	if err != nil {
 		return nil, false, err
 	}
@@ -263,7 +250,7 @@ type protoTxProvider interface {
 // the encoded transaction or an error if the unsigned transaction cannot be
 // built.
 func BuildSimTx(txf tx.Factory, msgs ...sdk.Msg) ([]byte, error) {
-	txb, err := txf.BuildUnsignedTx(msgs...)
+	txb, err := tx.BuildUnsignedTx(txf, msgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +322,10 @@ func (c *Chain) Send(msgs []sdk.Msg) bool {
 	return true
 }
 
+func (c *Chain) StartEventListener(dst core.ChainI, strategy core.StrategyI) {
+	panic("not implemented error")
+}
+
 // ------------------------------- //
 
 func (c *Chain) Key() string {
@@ -348,7 +339,7 @@ func (c *Chain) KeyExists(name string) bool {
 		return false
 	}
 
-	return k.Name == name
+	return k.GetName() == name
 }
 
 // MustGetAddress used for brevity
@@ -364,7 +355,7 @@ var sdkContextMutex sync.Mutex
 
 // UseSDKContext uses a custom Bech32 account prefix and returns a restore func
 // CONTRACT: When using this function, caller must ensure that lock contention
-// doesn't cause program to hang.
+// doesn't cause program to hang. This function is only for use in codec calls
 func (c *Chain) UseSDKContext() func() {
 	// Ensure we're the only one using the global context,
 	// lock context to begin function
@@ -385,14 +376,14 @@ func (c *Chain) UseSDKContext() func() {
 func (c *Chain) CLIContext(height int64) sdkCtx.Context {
 	return sdkCtx.Context{}.
 		WithChainID(c.config.ChainId).
-		WithCodec(c.codec).
+		WithJSONCodec(newContextualStdCodec(c.codec, c.UseSDKContext)).
 		WithInterfaceRegistry(c.codec.InterfaceRegistry()).
 		WithTxConfig(authtx.NewTxConfig(c.codec, authtx.DefaultSignModes)).
 		WithInput(os.Stdin).
 		WithNodeURI(c.config.RpcAddr).
 		WithClient(c.Client).
 		WithAccountRetriever(authTypes.AccountRetriever{}).
-		WithBroadcastMode(flags.BroadcastSync).
+		WithBroadcastMode(flags.BroadcastBlock).
 		WithKeyring(c.Keybase).
 		WithOutputFormat("json").
 		WithFrom(c.config.Key).

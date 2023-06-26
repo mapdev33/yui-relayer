@@ -16,7 +16,7 @@ import (
 var (
 	homePath    string
 	debug       bool
-	defaultHome = os.ExpandEnv("$HOME/.yui-relayer")
+	defaultHome = os.ExpandEnv("$HOME/.urelayer")
 )
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -24,21 +24,20 @@ var (
 func Execute(modules ...config.ModuleI) error {
 	// rootCmd represents the base command when called without any subcommands
 	var rootCmd = &cobra.Command{
-		Use:   "yrly",
+		Use:   "uly",
 		Short: "This application relays data between configured IBC enabled chains",
 	}
 
 	cobra.EnableCommandSorting = false
 	rootCmd.SilenceUsage = true
-	rootCmd.SilenceErrors = true
 
 	// Register top level flags --home and --debug
 	rootCmd.PersistentFlags().StringVar(&homePath, flags.FlagHome, defaultHome, "set home directory")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug output")
-	if err := viper.BindPFlag(flags.FlagHome, rootCmd.PersistentFlags().Lookup(flags.FlagHome)); err != nil {
+	if err := viper.BindPFlag(flags.FlagHome, rootCmd.Flags().Lookup(flags.FlagHome)); err != nil {
 		return err
 	}
-	if err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug")); err != nil {
+	if err := viper.BindPFlag("debug", rootCmd.Flags().Lookup("debug")); err != nil {
 		return err
 	}
 
@@ -48,7 +47,7 @@ func Execute(modules ...config.ModuleI) error {
 	for _, module := range modules {
 		module.RegisterInterfaces(codec.InterfaceRegistry())
 	}
-	ctx := &config.Context{Modules: modules, Config: &config.Config{}, Codec: codec}
+	ctx := &config.Context{Config: &config.Config{}, Codec: codec}
 
 	// Register subcommands
 
@@ -58,7 +57,6 @@ func Execute(modules ...config.ModuleI) error {
 		transactionCmd(ctx),
 		pathsCmd(ctx),
 		queryCmd(ctx),
-		modulesCmd(ctx),
 		serviceCmd(ctx),
 		flags.LineBreak,
 	)

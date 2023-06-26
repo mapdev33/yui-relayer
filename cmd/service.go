@@ -12,9 +12,7 @@ import (
 
 func serviceCmd(ctx *config.Context) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "service",
-		Short: "Relay Service Commands",
-		Long:  "Commands to manage the relay service",
+		Use: "service",
 	}
 	cmd.AddCommand(
 		startCmd(ctx),
@@ -41,9 +39,6 @@ func startCmd(ctx *config.Context) *cobra.Command {
 			}
 			st, err := core.GetStrategy(*path.Strategy)
 			if err != nil {
-				return err
-			}
-			if err := st.SetupRelay(context.TODO(), c[src], c[dst]); err != nil {
 				return err
 			}
 			return core.StartService(context.Background(), st, c[src], c[dst], viper.GetDuration(flagRelayInterval))

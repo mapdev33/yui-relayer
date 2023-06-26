@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	tmclient "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint"
+	tmclient "github.com/cosmos/ibc-go/modules/light-clients/07-tendermint/types"
 	"github.com/hyperledger-labs/yui-relayer/chains/tendermint"
 	"github.com/hyperledger-labs/yui-relayer/config"
 	"github.com/spf13/cobra"
@@ -40,8 +40,8 @@ func initLightCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chain := c.Chain.(*tendermint.Chain)
-			prover := c.Prover.(*tendermint.Prover)
+			chain := c.ChainI.(*tendermint.Chain)
+			prover := c.ProverI.(*tendermint.Prover)
 
 			db, df, err := prover.NewLightDB()
 			if err != nil {
@@ -96,14 +96,14 @@ func updateLightCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			prover := c.Prover.(*tendermint.Prover)
+			prover := c.ProverI.(*tendermint.Prover)
 
 			bh, err := prover.GetLatestLightHeader()
 			if err != nil {
 				return err
 			}
 
-			ah, err := prover.UpdateLightClient()
+			ah, _, _, err := prover.UpdateLightWithHeader()
 			if err != nil {
 				return err
 			}
@@ -129,8 +129,8 @@ func lightHeaderCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chain := c.Chain.(*tendermint.Chain)
-			prover := c.Prover.(*tendermint.Prover)
+			chain := c.ChainI.(*tendermint.Chain)
+			prover := c.ProverI.(*tendermint.Prover)
 
 			var header *tmclient.Header
 
@@ -188,7 +188,7 @@ func deleteLightCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			prover := c.Prover.(*tendermint.Prover)
+			prover := c.ProverI.(*tendermint.Prover)
 
 			err = prover.DeleteLightDB()
 			if err != nil {

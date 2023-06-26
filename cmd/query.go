@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
+	"github.com/cosmos/ibc-go/modules/core/exported"
 	"github.com/hyperledger-labs/yui-relayer/config"
 	"github.com/hyperledger-labs/yui-relayer/core"
 	"github.com/hyperledger-labs/yui-relayer/helpers"
@@ -48,20 +46,22 @@ func queryClientCmd(ctx *config.Context) *cobra.Command {
 			}
 			c := chains[args[1]]
 
-			height, err := cmd.Flags().GetUint64(flags.FlagHeight)
+			height, err := cmd.Flags().GetInt64(flags.FlagHeight)
 			if err != nil {
 				return err
 			}
-			latestHeight, err := c.LatestHeight()
+
+			if height == 0 {
+				height, err = c.GetLatestHeight()
+				if err != nil {
+					return err
+				}
+			}
+			res, err := c.QueryClientState(height)
 			if err != nil {
 				return err
 			}
-			queryHeight := clienttypes.NewHeight(latestHeight.GetRevisionNumber(), uint64(height))
-			res, err := c.QueryClientState(core.NewQueryContext(context.TODO(), queryHeight))
-			if err != nil {
-				return err
-			}
-			var cs ibcexported.ClientState
+			var cs exported.ClientState
 			if err := c.Codec().UnpackAny(res.ClientState, &cs); err != nil {
 				return err
 			}
@@ -85,16 +85,12 @@ func queryConnection(ctx *config.Context) *cobra.Command {
 			}
 			c := chains[args[1]]
 
-			height, err := cmd.Flags().GetUint64(flags.FlagHeight)
+			height, err := c.GetLatestHeight()
 			if err != nil {
 				return err
 			}
-			latestHeight, err := c.LatestHeight()
-			if err != nil {
-				return err
-			}
-			queryHeight := clienttypes.NewHeight(latestHeight.GetRevisionNumber(), uint64(height))
-			res, err := c.QueryConnection(core.NewQueryContext(context.TODO(), queryHeight))
+
+			res, err := c.QueryConnection(height)
 			if err != nil {
 				return err
 			}
@@ -103,7 +99,7 @@ func queryConnection(ctx *config.Context) *cobra.Command {
 		},
 	}
 
-	return heightFlag(cmd)
+	return cmd
 }
 
 func queryChannel(ctx *config.Context) *cobra.Command {
@@ -118,16 +114,12 @@ func queryChannel(ctx *config.Context) *cobra.Command {
 			}
 			c := chains[args[1]]
 
-			height, err := cmd.Flags().GetUint64(flags.FlagHeight)
+			height, err := c.GetLatestHeight()
 			if err != nil {
 				return err
 			}
-			latestHeight, err := c.LatestHeight()
-			if err != nil {
-				return err
-			}
-			queryHeight := clienttypes.NewHeight(latestHeight.GetRevisionNumber(), uint64(height))
-			res, err := c.QueryChannel(core.NewQueryContext(context.TODO(), queryHeight))
+
+			res, err := c.QueryChannel(height)
 			if err != nil {
 				return err
 			}
@@ -136,7 +128,7 @@ func queryChannel(ctx *config.Context) *cobra.Command {
 		},
 	}
 
-	return heightFlag(cmd)
+	return cmd
 }
 
 func queryBalanceCmd(ctx *config.Context) *cobra.Command {
@@ -160,12 +152,7 @@ func queryBalanceCmd(ctx *config.Context) *cobra.Command {
 				return err
 			}
 
-			h, err := chain.LatestHeight()
-			if err != nil {
-				return err
-			}
-
-			coins, err := helpers.QueryBalance(chain, h, addr, showDenoms)
+			coins, err := helpers.QueryBalance(chain, addr, showDenoms)
 			if err != nil {
 				return err
 			}

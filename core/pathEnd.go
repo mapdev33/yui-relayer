@@ -2,17 +2,23 @@ package core
 
 import (
 	"strings"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	conntypes "github.com/cosmos/ibc-go/v7/modules/core/03-connection/types"
-	chantypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	commitmenttypes "github.com/cosmos/ibc-go/v7/modules/core/23-commitment/types"
+	transfertypes "github.com/cosmos/ibc-go/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
+	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
+	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
+	commitmenttypes "github.com/cosmos/ibc-go/modules/core/23-commitment/types"
+	commitmentypes "github.com/cosmos/ibc-go/modules/core/23-commitment/types"
+	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
+	tmclient "github.com/cosmos/ibc-go/modules/light-clients/07-tendermint/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/light"
 )
 
 var (
-	defaultChainPrefix = commitmenttypes.NewMerklePrefix([]byte("ibc"))
+	defaultChainPrefix = commitmentypes.NewMerklePrefix([]byte("ibc"))
 )
 
 const (
@@ -49,7 +55,7 @@ func (pe *PathEnd) GetOrder() chantypes.Order {
 }
 
 // UpdateClient creates an sdk.Msg to update the client on src with data pulled from dst
-func (pe *PathEnd) UpdateClient(dstHeader Header, signer sdk.AccAddress) sdk.Msg {
+func (pe *PathEnd) UpdateClient(dstHeader ibcexported.Header, signer sdk.AccAddress) sdk.Msg {
 	if err := dstHeader.ValidateBasic(); err != nil {
 		panic(err)
 	}
@@ -64,12 +70,43 @@ func (pe *PathEnd) UpdateClient(dstHeader Header, signer sdk.AccAddress) sdk.Msg
 	return msg
 }
 
-func (pe *PathEnd) UpdateClients(dstHeaders []Header, signer sdk.AccAddress) []sdk.Msg {
-	var msgs []sdk.Msg
-	for _, header := range dstHeaders {
-		msgs = append(msgs, pe.UpdateClient(header, signer))
+// CreateClient creates an sdk.Msg to update the client on src with consensus state from dst
+func (pe *PathEnd) CreateClient(
+	dstHeader *tmclient.Header,
+	trustingPeriod, unbondingPeriod time.Duration,
+	consensusParams *abci.ConsensusParams,
+	signer sdk.AccAddress) sdk.Msg {
+	if err := dstHeader.ValidateBasic(); err != nil {
+		panic(err)
 	}
-	return msgs
+
+	// Blank Client State
+	clientState := tmclient.NewClientState(
+		dstHeader.GetHeader().GetChainID(),
+		tmclient.NewFractionFromTm(light.DefaultTrustLevel),
+		trustingPeriod,
+		unbondingPeriod,
+		time.Minute*10,
+		dstHeader.GetHeight().(clienttypes.Height),
+		commitmenttypes.GetSDKSpecs(),
+		[]string{"upgrade", "upgradedIBCState"},
+		false,
+		false,
+	)
+
+	msg, err := clienttypes.NewMsgCreateClient(
+		clientState,
+		dstHeader.ConsensusState(),
+		signer.String(),
+	)
+
+	if err != nil {
+		panic(err)
+	}
+	if err = msg.ValidateBasic(); err != nil {
+		panic(err)
+	}
+	return msg
 }
 
 // ConnInit creates a MsgConnectionOpenInit
@@ -99,6 +136,7 @@ func (pe *PathEnd) ConnTry(
 		panic(err)
 	}
 	msg := conntypes.NewMsgConnectionOpenTry(
+		"",
 		pe.ClientID,
 		dst.ConnectionID,
 		dst.ClientID,
@@ -173,6 +211,7 @@ func (pe *PathEnd) ChanInit(dst *PathEnd, signer sdk.AccAddress) sdk.Msg {
 func (pe *PathEnd) ChanTry(dst *PathEnd, dstChanState *chantypes.QueryChannelResponse, signer sdk.AccAddress) sdk.Msg {
 	return chantypes.NewMsgChannelOpenTry(
 		pe.PortID,
+		"",
 		pe.Version,
 		dstChanState.Channel.Ordering,
 		[]string{pe.ConnectionID},
@@ -231,7 +270,7 @@ func (pe *PathEnd) ChanCloseConfirm(dstChanState *chantypes.QueryChannelResponse
 
 // MsgTransfer creates a new transfer message
 func (pe *PathEnd) MsgTransfer(dst *PathEnd, amount sdk.Coin, dstAddr string,
-	signer sdk.AccAddress, timeoutHeight, timeoutTimestamp uint64, memo string) sdk.Msg {
+	signer sdk.AccAddress, timeoutHeight, timeoutTimestamp uint64) sdk.Msg {
 
 	version := clienttypes.ParseChainID(dst.ChainID)
 	return transfertypes.NewMsgTransfer(
@@ -242,7 +281,6 @@ func (pe *PathEnd) MsgTransfer(dst *PathEnd, amount sdk.Coin, dstAddr string,
 		dstAddr,
 		clienttypes.NewHeight(version, timeoutHeight),
 		timeoutTimestamp,
-		memo,
 	)
 }
 
@@ -260,4 +298,14 @@ func (pe *PathEnd) NewPacket(dst *PathEnd, sequence uint64, packetData []byte,
 		clienttypes.NewHeight(version, timeoutHeight),
 		timeoutStamp,
 	)
+}
+
+// XferPacket creates a new transfer packet
+func (pe *PathEnd) XferPacket(amount sdk.Coin, sender, receiver string) []byte {
+	return transfertypes.NewFungibleTokenPacketData(
+		amount.Denom,
+		amount.Amount.Uint64(),
+		sender,
+		receiver,
+	).GetBytes()
 }

@@ -7,9 +7,9 @@ import (
 
 	retry "github.com/avast/retry-go"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	conntypes "github.com/cosmos/ibc-go/v7/modules/core/03-connection/types"
-	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
+	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
+	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
+	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
 )
 
 var (
@@ -39,9 +39,9 @@ func CreateConnection(src, dst *ProvableChain, to time.Duration) error {
 		// In the case of success and this being the last transaction
 		// debug logging, log created connection and break
 		case connSteps.Success() && connSteps.Last:
-			log.Printf("★ Connection created: [%s]client{%s}conn{%s} -> [%s]client{%s}conn{%s}",
+			log.Println(fmt.Sprintf("★ Connection created: [%s]client{%s}conn{%s} -> [%s]client{%s}conn{%s}",
 				src.ChainID(), src.Path().ClientID, src.Path().ConnectionID,
-				dst.ChainID(), dst.Path().ClientID, dst.Path().ConnectionID)
+				dst.ChainID(), dst.Path().ClientID, dst.Path().ConnectionID))
 			return nil
 		// In the case of success, reset the failures counter
 		case connSteps.Success():
@@ -50,7 +50,7 @@ func CreateConnection(src, dst *ProvableChain, to time.Duration) error {
 		// In the case of failure, increment the failures counter and exit if this is the 3rd failure
 		case !connSteps.Success():
 			failed++
-			log.Println("retrying transaction...")
+			log.Println(fmt.Sprintf("retrying transaction..."))
 			time.Sleep(5 * time.Second)
 			if failed > 2 {
 				return fmt.Errorf("! Connection failed: [%s]client{%s}conn{%s} -> [%s]client{%s}conn{%s}",
@@ -76,14 +76,14 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 	}
 	// Query a number of things all at once
 	var (
-		srcUpdateHeaders, dstUpdateHeaders []Header
-		srcCsRes, dstCsRes                 *clienttypes.QueryClientStateResponse
-		srcCS, dstCS                       ibcexported.ClientState
-		srcCons, dstCons                   *clienttypes.QueryConsensusStateResponse
-		srcConsH, dstConsH                 ibcexported.Height
+		srcUpdateHeader, dstUpdateHeader HeaderI
+		srcCsRes, dstCsRes               *clienttypes.QueryClientStateResponse
+		srcCS, dstCS                     ibcexported.ClientState
+		srcCons, dstCons                 *clienttypes.QueryConsensusStateResponse
+		srcConsH, dstConsH               ibcexported.Height
 	)
 	err = retry.Do(func() error {
-		srcUpdateHeaders, dstUpdateHeaders, err = sh.SetupBothHeadersForUpdate(src, dst)
+		srcUpdateHeader, dstUpdateHeader, err = sh.GetHeaders(src, dst)
 		return err
 	}, rtyAtt, rtyDel, rtyErr, retry.OnRetry(func(n uint, err error) {
 		// logRetryUpdateHeaders(src, dst, n, err)
@@ -95,14 +95,14 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 		return nil, err
 	}
 
-	srcConn, dstConn, err := QueryConnectionPair(sh.GetQueryContext(src.ChainID()), sh.GetQueryContext(dst.ChainID()), src, dst)
+	srcConn, dstConn, err := QueryConnectionPair(src, dst, sh.GetProvableHeight(src.ChainID()), sh.GetProvableHeight(dst.ChainID()))
 	if err != nil {
 		return nil, err
 	}
 
 	if !(srcConn.Connection.State == conntypes.UNINITIALIZED && dstConn.Connection.State == conntypes.UNINITIALIZED) {
 		// Query client state from each chain's client
-		srcCsRes, dstCsRes, err = QueryClientStatePair(sh.GetQueryContext(src.ChainID()), sh.GetQueryContext(dst.ChainID()), src, dst)
+		srcCsRes, dstCsRes, err = QueryClientStatePair(src, dst, sh.GetProvableHeight(src.ChainID()), sh.GetProvableHeight(dst.ChainID()))
 		if err != nil && (srcCsRes == nil || dstCsRes == nil) {
 			return nil, err
 		}
@@ -116,8 +116,7 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 		// Store the heights
 		srcConsH, dstConsH = srcCS.GetLatestHeight(), dstCS.GetLatestHeight()
 		srcCons, dstCons, err = QueryClientConsensusStatePair(
-			sh.GetQueryContext(src.ChainID()), sh.GetQueryContext(dst.ChainID()),
-			src, dst, srcConsH, dstConsH)
+			src, dst, sh.GetProvableHeight(src.ChainID()), sh.GetProvableHeight(dst.ChainID()), srcConsH, dstConsH)
 		if err != nil {
 			return nil, err
 		}
@@ -128,24 +127,24 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 	case srcConn.Connection.State == conntypes.UNINITIALIZED && dstConn.Connection.State == conntypes.UNINITIALIZED:
 		logConnectionStates(src, dst, srcConn, dstConn)
 		addr := mustGetAddress(src)
-		if len(dstUpdateHeaders) > 0 {
-			out.Src = append(out.Src, src.Path().UpdateClients(dstUpdateHeaders, addr)...)
+		if dstUpdateHeader != nil {
+			out.Src = append(out.Src, src.Path().UpdateClient(dstUpdateHeader, addr))
 		}
 		out.Src = append(out.Src, src.Path().ConnInit(dst.Path(), addr))
 		// Handshake has started on dst (1 stepdone), relay `connOpenTry` and `updateClient` on src
 	case srcConn.Connection.State == conntypes.UNINITIALIZED && dstConn.Connection.State == conntypes.INIT:
 		logConnectionStates(src, dst, srcConn, dstConn)
 		addr := mustGetAddress(src)
-		if len(dstUpdateHeaders) > 0 {
-			out.Src = append(out.Src, src.Path().UpdateClients(dstUpdateHeaders, addr)...)
+		if dstUpdateHeader != nil {
+			out.Src = append(out.Src, src.Path().UpdateClient(dstUpdateHeader, addr))
 		}
 		out.Src = append(out.Src, src.Path().ConnTry(dst.Path(), dstCsRes, dstConn, dstCons, addr))
 	// Handshake has started on src (1 step done), relay `connOpenTry` and `updateClient` on dst
 	case srcConn.Connection.State == conntypes.INIT && dstConn.Connection.State == conntypes.UNINITIALIZED:
 		logConnectionStates(dst, src, dstConn, srcConn)
 		addr := mustGetAddress(dst)
-		if len(srcUpdateHeaders) > 0 {
-			out.Dst = append(out.Dst, dst.Path().UpdateClients(srcUpdateHeaders, addr)...)
+		if srcUpdateHeader != nil {
+			out.Dst = append(out.Dst, dst.Path().UpdateClient(srcUpdateHeader, addr))
 		}
 		out.Dst = append(out.Dst, dst.Path().ConnTry(src.Path(), srcCsRes, srcConn, srcCons, addr))
 
@@ -153,8 +152,8 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 	case srcConn.Connection.State == conntypes.TRYOPEN && dstConn.Connection.State == conntypes.INIT:
 		logConnectionStates(dst, src, dstConn, srcConn)
 		addr := mustGetAddress(dst)
-		if len(srcUpdateHeaders) > 0 {
-			out.Dst = append(out.Dst, dst.Path().UpdateClients(srcUpdateHeaders, addr)...)
+		if srcUpdateHeader != nil {
+			out.Dst = append(out.Dst, dst.Path().UpdateClient(srcUpdateHeader, addr))
 		}
 		out.Dst = append(out.Dst, dst.Path().ConnAck(src.Path(), srcCsRes, srcConn, srcCons, addr))
 
@@ -162,8 +161,8 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 	case srcConn.Connection.State == conntypes.INIT && dstConn.Connection.State == conntypes.TRYOPEN:
 		logConnectionStates(src, dst, srcConn, dstConn)
 		addr := mustGetAddress(src)
-		if len(dstUpdateHeaders) > 0 {
-			out.Src = append(out.Src, src.Path().UpdateClients(dstUpdateHeaders, addr)...)
+		if dstUpdateHeader != nil {
+			out.Src = append(out.Src, src.Path().UpdateClient(dstUpdateHeader, addr))
 		}
 		out.Src = append(out.Src, src.Path().ConnAck(dst.Path(), dstCsRes, dstConn, dstCons, addr))
 
@@ -171,8 +170,8 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 	case srcConn.Connection.State == conntypes.TRYOPEN && dstConn.Connection.State == conntypes.OPEN:
 		logConnectionStates(src, dst, srcConn, dstConn)
 		addr := mustGetAddress(src)
-		if len(dstUpdateHeaders) > 0 {
-			out.Src = append(out.Src, src.Path().UpdateClients(dstUpdateHeaders, addr)...)
+		if dstUpdateHeader != nil {
+			out.Src = append(out.Src, src.Path().UpdateClient(dstUpdateHeader, addr))
 		}
 		out.Src = append(out.Src, src.Path().ConnConfirm(dstConn, addr))
 		out.Last = true
@@ -181,8 +180,8 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 	case srcConn.Connection.State == conntypes.OPEN && dstConn.Connection.State == conntypes.TRYOPEN:
 		logConnectionStates(dst, src, dstConn, srcConn)
 		addr := mustGetAddress(dst)
-		if len(srcUpdateHeaders) > 0 {
-			out.Dst = append(out.Dst, dst.Path().UpdateClients(srcUpdateHeaders, addr)...)
+		if srcUpdateHeader != nil {
+			out.Dst = append(out.Dst, dst.Path().UpdateClient(srcUpdateHeader, addr))
 		}
 		out.Dst = append(out.Dst, dst.Path().ConnConfirm(srcConn, addr))
 		out.Last = true
@@ -195,7 +194,7 @@ func createConnectionStep(src, dst *ProvableChain) (*RelayMsgs, error) {
 }
 
 // validatePaths takes two chains and validates their paths
-func validatePaths(src, dst Chain) error {
+func validatePaths(src, dst ChainI) error {
 	if err := src.Path().Validate(); err != nil {
 		return fmt.Errorf("path on chain %s failed to set: %w", src.ChainID(), err)
 	}
@@ -205,8 +204,8 @@ func validatePaths(src, dst Chain) error {
 	return nil
 }
 
-func logConnectionStates(src, dst Chain, srcConn, dstConn *conntypes.QueryConnectionResponse) {
-	log.Printf("- [%s]@{%d}conn(%s)-{%s} : [%s]@{%d}conn(%s)-{%s}",
+func logConnectionStates(src, dst ChainI, srcConn, dstConn *conntypes.QueryConnectionResponse) {
+	log.Println(fmt.Sprintf("- [%s]@{%d}conn(%s)-{%s} : [%s]@{%d}conn(%s)-{%s}",
 		src.ChainID(),
 		mustGetHeight(srcConn.ProofHeight),
 		src.Path().ConnectionID,
@@ -215,7 +214,7 @@ func logConnectionStates(src, dst Chain, srcConn, dstConn *conntypes.QueryConnec
 		mustGetHeight(dstConn.ProofHeight),
 		dst.Path().ConnectionID,
 		dstConn.Connection.State,
-	)
+	))
 }
 
 // mustGetHeight takes the height inteface and returns the actual height

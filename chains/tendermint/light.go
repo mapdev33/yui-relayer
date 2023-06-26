@@ -10,14 +10,14 @@ import (
 	"path/filepath"
 
 	"github.com/avast/retry-go"
-	dbm "github.com/cometbft/cometbft-db"
-	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/light"
-	lightp "github.com/cometbft/cometbft/light/provider"
-	lighthttp "github.com/cometbft/cometbft/light/provider/http"
-	dbs "github.com/cometbft/cometbft/light/store/db"
-	tmtypes "github.com/cometbft/cometbft/types"
-	tmclient "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint"
+	tmclient "github.com/cosmos/ibc-go/modules/light-clients/07-tendermint/types"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/light"
+	lightp "github.com/tendermint/tendermint/light/provider"
+	lighthttp "github.com/tendermint/tendermint/light/provider/http"
+	dbs "github.com/tendermint/tendermint/light/store/db"
+	tmtypes "github.com/tendermint/tendermint/types"
+	dbm "github.com/tendermint/tm-db"
 )
 
 // NOTE: currently we are discarding the very noisy light client logs
@@ -107,14 +107,13 @@ func (pr *Prover) LightClientWithoutTrust(db dbm.DB) (*light.Client, error) {
 	prov := pr.LightHTTP()
 
 	if err := retry.Do(func() error {
-		h, err := pr.chain.LatestHeight()
+		height, err = pr.chain.GetLatestHeight()
 		switch {
 		case err != nil:
 			return err
-		case h.GetRevisionHeight() == 0:
+		case height == 0:
 			return fmt.Errorf("shouldn't be here")
 		default:
-			height = int64(h.GetRevisionHeight())
 			return nil
 		}
 	}, rtyAtt, rtyDel, rtyErr); err != nil {
@@ -165,12 +164,10 @@ func (pr *Prover) GetLightSignedHeaderAtHeight(height int64) (*tmclient.Header, 
 		return nil, err
 	}
 
-	valSet := tmtypes.NewValidatorSet(sh.ValidatorSet.Validators)
-	protoVal, err := valSet.ToProto()
+	protoVal, err := tmtypes.NewValidatorSet(sh.ValidatorSet.Validators).ToProto()
 	if err != nil {
 		return nil, err
 	}
-	protoVal.TotalVotingPower = valSet.TotalVotingPower()
 
 	return &tmclient.Header{SignedHeader: sh.SignedHeader.ToProto(), ValidatorSet: protoVal}, nil
 }
