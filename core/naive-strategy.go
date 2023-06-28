@@ -88,6 +88,10 @@ func (st NaiveStrategy) UnrelayedSequences(src, dst *ProvableChain, sh SyncHeade
 		return nil, err
 	}
 
+	fmt.Println("-------------UnrelayedSequences0------------")
+	fmt.Println("get all packet:", src.ChainID(), src.Path().PortID, len(srcPacketSeq))
+	fmt.Println("get all packet:", dst.ChainID(), dst.Path().PortID, len(dstPacketSeq))
+	fmt.Println("-------------UnrelayedSequences0------------")
 	eg.Go(func() error {
 		// Query all packets sent by src that have been received by dst
 		src, err := dst.QueryUnrecievedPackets(sh.GetQueryableHeight(dst.ChainID()), srcPacketSeq)
@@ -113,7 +117,10 @@ func (st NaiveStrategy) UnrelayedSequences(src, dst *ProvableChain, sh SyncHeade
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-
+	fmt.Println("-------------UnrelayedSequences1------------")
+	fmt.Println("src chain has ", len(rs.Dst), " unreceived packet from dst chain")
+	fmt.Println("dst chain has ", len(rs.Src), " unreceived packet from src chain")
+	fmt.Println("-------------UnrelayedSequences1------------")
 	return rs, nil
 }
 
@@ -176,7 +183,10 @@ func (st NaiveStrategy) RelayPackets(src, dst *ProvableChain, sp *RelaySequences
 			msgs.Src = append([]sdk.Msg{src.Path().UpdateClient(h, addr)}, msgs.Src...)
 		}
 	}
-
+	fmt.Println("-----------RelayPackets-----------")
+	fmt.Println("has ", len(msgs.Src), " package to be relay to src chain")
+	fmt.Println("has ", len(msgs.Dst), " package to be relay to dst chain")
+	fmt.Println("-----------RelayPackets-----------")
 	// send messages to their respective chains
 	if msgs.Send(src, dst); msgs.Success() {
 		if len(msgs.Dst) > 1 {
@@ -252,6 +262,11 @@ func (st NaiveStrategy) UnrelayedAcknowledgements(src, dst *ProvableChain, sh Sy
 		return nil, err
 	}
 
+	fmt.Println("-------------UnrelayedAcknowledgements0------------")
+	fmt.Println("get all ack packet:", src.ChainID(), src.Path().PortID, len(srcPacketSeq))
+	fmt.Println("get all ack packet:", dst.ChainID(), dst.Path().PortID, len(dstPacketSeq))
+	fmt.Println("-------------UnrelayedAcknowledgements0------------")
+
 	eg.Go(func() error {
 		// Query all packets sent by src that have been received by dst
 		src, err := dst.QueryUnrecievedAcknowledgements(sh.GetQueryableHeight(dst.ChainID()), srcPacketSeq)
@@ -279,6 +294,10 @@ func (st NaiveStrategy) UnrelayedAcknowledgements(src, dst *ProvableChain, sh Sy
 		return nil, err
 	}
 
+	fmt.Println("-------------UnrelayedAcknowledgements1------------")
+	fmt.Println("src chain has ", len(rs.Dst), " unreceived ack packet from dst chain")
+	fmt.Println("dst chain has ", len(rs.Src), " unreceived ack packet from src chain")
+	fmt.Println("-------------UnrelayedAcknowledgements1------------")
 	return rs, nil
 }
 
@@ -367,7 +386,10 @@ func (st NaiveStrategy) RelayAcknowledgements(src, dst *ProvableChain, sp *Relay
 			msgs.Src = append([]sdk.Msg{src.Path().UpdateClient(h, addr)}, msgs.Src...)
 		}
 	}
-
+	fmt.Println("-----------RelayAcknowledgements-----------")
+	fmt.Println("has ", len(msgs.Src), " ack package to be relay to src chain")
+	fmt.Println("has ", len(msgs.Dst), " ack package to be relay to dst chain")
+	fmt.Println("-----------RelayAcknowledgements-----------")
 	// send messages to their respective chains
 	if msgs.Send(src, dst); msgs.Success() {
 		if len(msgs.Dst) > 1 {
