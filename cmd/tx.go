@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -160,14 +161,18 @@ func relayMsgsCmd(ctx *config.Context) *cobra.Command {
 		Short: "relay any packets that remain to be relayed on a given path, in both directions",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// src: ibc0 (harmony)
+			// dst: ibc1 (tendermint)
 			c, src, dst, err := ctx.Config.ChainsFromPath(args[0])
 			if err != nil {
 				return err
 			}
+			fmt.Printf("============================== relay msg, src: %s, dst: %s", src, dst)
 			path, err := ctx.Config.Paths.Get(args[0])
 			if err != nil {
 				return err
 			}
+			// get src and dst header
 			sh, err := core.NewSyncHeaders(c[src], c[dst])
 			if err != nil {
 				return err

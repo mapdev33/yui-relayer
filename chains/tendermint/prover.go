@@ -110,6 +110,7 @@ func (pr *Prover) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI,
 
 // SetupHeader creates a new header based on a given header
 func (pr *Prover) SetupHeader(dstChain core.LightClientIBCQueryierI, srcHeader core.HeaderI) (core.HeaderI, error) {
+	fmt.Printf("============================== tendermint SetupHeader: src-height: %s, dst: %s\n", srcHeader.GetHeight(), dstChain.GetChainID())
 	srcChain := pr.chain
 	// make copy of header stored in mop
 	tmp := srcHeader.(*tmclient.Header)
@@ -186,6 +187,7 @@ func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight i
 	// NOTE: We query connection at height - 1 because of the way tendermint returns
 	// proofs the commit for height n is contained in the header of height n + 1
 	provableHeight = queryableHeight - 1
+	fmt.Printf("============================== tendermint UpdateLightWithHeader: h1: %d, h2: %d, h3: %d\n", h.GetHeight(), provableHeight, queryableHeight)
 	return h, provableHeight, queryableHeight, nil
 }
 

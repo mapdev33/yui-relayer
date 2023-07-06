@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/cosmos/ibc-go/modules/core/exported"
 )
 
@@ -54,6 +55,8 @@ func (sh syncHeaders) GetQueryableHeight(chainID string) int64 {
 }
 
 // GetHeader implements SyncHeadersI
+// src: ibc0 (harmony)
+// dst: ibc1 (tendermint)
 func (sh syncHeaders) GetHeader(src, dst LightClientIBCQueryierI) (HeaderI, error) {
 	return src.SetupHeader(dst, sh.latestHeaders[src.GetChainID()])
 }
@@ -74,10 +77,12 @@ func (sh syncHeaders) GetHeaders(src, dst LightClientIBCQueryierI) (HeaderI, Hea
 // Updates implements SyncHeadersI
 func (sh *syncHeaders) Updates(src, dst LightClientI) error {
 	srcHeader, srcPHeight, srcQHeight, err := src.UpdateLightWithHeader()
+	fmt.Printf("============================== update src header: h1: %d, h2: %d, h3: %d\n", srcHeader.GetHeight(), srcPHeight, srcQHeight)
 	if err != nil {
 		return err
 	}
 	dstHeader, dstPHeight, dstQHeight, err := dst.UpdateLightWithHeader()
+	fmt.Printf("============================== update dst header: h1: %d, h2: %d, h3: %d\n", srcHeader.GetHeight(), srcPHeight, srcQHeight)
 	if err != nil {
 		return err
 	}

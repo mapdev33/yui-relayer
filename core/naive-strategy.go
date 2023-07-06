@@ -154,6 +154,8 @@ func (st NaiveStrategy) RelayPackets(src, dst *ProvableChain, sp *RelaySequences
 		return nil
 	}
 
+	// src: ibc0 (harmony)
+	// dst: ibc1 (tendermint)
 	// Prepend non-empty msg lists with UpdateClient
 	if len(msgs.Dst) != 0 {
 		// Sending an update from src to dst

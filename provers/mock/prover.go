@@ -2,6 +2,7 @@ package mock
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -63,6 +64,7 @@ func (pr *Prover) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI,
 
 // SetupHeader creates a new header based on a given header
 func (pr *Prover) SetupHeader(dst core.LightClientIBCQueryierI, baseSrcHeader core.HeaderI) (core.HeaderI, error) {
+	fmt.Println("============================== mock SetupHeader")
 	return baseSrcHeader.(*mocktypes.Header), nil
 }
 
@@ -76,6 +78,7 @@ func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight i
 	if err != nil {
 		return nil, -1, -1, err
 	}
+	fmt.Printf("============================== mock UpdateLightWithHeader: h1: %d, h2: %d, h3: %d\n", h.GetHeight(), chainHeight, chainHeight)
 	return h, chainHeight, chainHeight, nil
 }
 
