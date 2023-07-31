@@ -29,6 +29,7 @@ func GetPacketsFromEvents(events []abci.Event) ([]channeltypes.Packet, error) {
 				// AttributeKeyData key indicates a start of packet attributes
 				packet = channeltypes.Packet{}
 				packet.Data = []byte(attr.Value)
+				fmt.Println("============================== AttributeKeyData: ", packet.Data)
 				err = assertIndex(i, 0)
 			case channeltypes.AttributeKeyDataHex:
 				var bz []byte
@@ -37,6 +38,7 @@ func GetPacketsFromEvents(events []abci.Event) ([]channeltypes.Packet, error) {
 					panic(err)
 				}
 				packet.Data = bz
+				fmt.Println("============================== AttributeKeyDataHex: ", packet.Data)
 				err = assertIndex(i, 1)
 			case channeltypes.AttributeKeyTimeoutHeight:
 				parts := strings.Split(v, "-")

@@ -20,6 +20,7 @@ func SendTransferMsg(src, dst *ProvableChain, amount sdk.Coin, dstAddr fmt.Strin
 
 	// Properly render the address string
 	dstAddrString := dstAddr.String()
+	fmt.Println("============================== dstAddrString: ", dstAddrString)
 
 	switch {
 	case toHeightOffset > 0 && toTimeOffset > 0:

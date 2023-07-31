@@ -77,12 +77,12 @@ func (sh syncHeaders) GetHeaders(src, dst LightClientIBCQueryierI) (HeaderI, Hea
 // Updates implements SyncHeadersI
 func (sh *syncHeaders) Updates(src, dst LightClientI) error {
 	srcHeader, srcPHeight, srcQHeight, err := src.UpdateLightWithHeader()
-	fmt.Printf("============================== update src header: h1: %d, h2: %d, h3: %d\n", srcHeader.GetHeight(), srcPHeight, srcQHeight)
+	fmt.Printf("============================== update src header, chainID: %s, h1: %d, h2: %d, h3: %d\n", src.GetChainID(), srcHeader.GetHeight(), srcPHeight, srcQHeight)
 	if err != nil {
 		return err
 	}
 	dstHeader, dstPHeight, dstQHeight, err := dst.UpdateLightWithHeader()
-	fmt.Printf("============================== update dst header: h1: %d, h2: %d, h3: %d\n", srcHeader.GetHeight(), srcPHeight, srcQHeight)
+	fmt.Printf("============================== update dst header, chainID: %s, h1: %d, h2: %d, h3: %d\n", dst.GetChainID(), dstHeader.GetHeight(), dstHeader, dstHeader)
 	if err != nil {
 		return err
 	}

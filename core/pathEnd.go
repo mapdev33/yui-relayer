@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -271,9 +272,9 @@ func (pe *PathEnd) ChanCloseConfirm(dstChanState *chantypes.QueryChannelResponse
 // MsgTransfer creates a new transfer message
 func (pe *PathEnd) MsgTransfer(dst *PathEnd, amount sdk.Coin, dstAddr string,
 	signer sdk.AccAddress, timeoutHeight, timeoutTimestamp uint64) sdk.Msg {
-
+	fmt.Println("============================== MsgTransfer dstAddr: ", dstAddr)
 	version := clienttypes.ParseChainID(dst.ChainID)
-	return transfertypes.NewMsgTransfer(
+	msg := transfertypes.NewMsgTransfer(
 		pe.PortID,
 		pe.ChannelID,
 		amount,
@@ -282,6 +283,10 @@ func (pe *PathEnd) MsgTransfer(dst *PathEnd, amount sdk.Coin, dstAddr string,
 		clienttypes.NewHeight(version, timeoutHeight),
 		timeoutTimestamp,
 	)
+	fmt.Println("============================== MsgTransfer msg token: ", msg.Token)
+	fmt.Println("============================== MsgTransfer msg sender: ", msg.Sender)
+	fmt.Println("============================== MsgTransfer msg receiver: ", msg.Receiver)
+	return msg
 }
 
 // NewPacket returns a new packet from src to dist w
