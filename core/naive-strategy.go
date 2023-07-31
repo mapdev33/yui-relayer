@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"log"
 
 	retry "github.com/avast/retry-go"
@@ -306,6 +307,7 @@ func (st NaiveStrategy) UnrelayedAcknowledgements(src, dst *ProvableChain, sh Sy
 // TODO add packet-timeout support
 func relayPackets(chain *ProvableChain, seqs []uint64, sh SyncHeadersI, sender sdk.AccAddress) ([]sdk.Msg, error) {
 	var msgs []sdk.Msg
+	fmt.Println("============================== relayPackets ChainID: ", chain.GetChainID())
 	for _, seq := range seqs {
 		p, err := chain.QueryPacket(int64(sh.GetQueryableHeight(chain.ChainID())), seq)
 		if err != nil {
@@ -318,6 +320,7 @@ func relayPackets(chain *ProvableChain, seqs []uint64, sh SyncHeadersI, sender s
 			log.Println("failed to QueryPacketCommitment:", provableHeight, seq, err)
 			return nil, err
 		}
+		fmt.Println("============================== relayPackets res.Proof: ", common.Bytes2Hex(res.Proof))
 		msg := chantypes.NewMsgRecvPacket(*p, res.Proof, res.ProofHeight, sender.String())
 		msgs = append(msgs, msg)
 	}
