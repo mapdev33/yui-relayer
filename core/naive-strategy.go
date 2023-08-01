@@ -321,6 +321,10 @@ func relayPackets(chain *ProvableChain, seqs []uint64, sh SyncHeadersI, sender s
 			return nil, err
 		}
 		fmt.Println("============================== relayPackets res.Proof: ", common.Bytes2Hex(res.Proof))
+		fmt.Println("============================== relayPackets res.Commitment: ", common.Bytes2Hex(res.Commitment))
+		pp := *p
+		fmt.Println("============================== relayPackets packet: ", pp.Data)
+		fmt.Println("============================== relayPackets packet.Data: ", common.Bytes2Hex(pp.Data))
 		msg := chantypes.NewMsgRecvPacket(*p, res.Proof, res.ProofHeight, sender.String())
 		msgs = append(msgs, msg)
 	}
